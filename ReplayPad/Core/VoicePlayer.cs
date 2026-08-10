@@ -189,6 +189,71 @@ public sealed class VoicePlayer : IDisposable
         }
     }
 
+    // ---------- transport control (for the soundboard seek bar) ----------
+    // Operations target the most recently started session — the sound the
+    // user just triggered and would expect a scrubber to control.
+
+    /// <summary>State of the sound currently under transport control, or null.</summary>
+    public sealed record Transport(string Path, TimeSpan Position, TimeSpan Duration, bool IsPaused);
+
+    public Transport? ActiveTransport()
+    {
+        lock (_lock)
+        {
+            for (int i = _sessions.Count - 1; i >= 0; i--)
+            {
+                var session = _sessions[i];
+                if (session.Outputs.Count == 0)
+                    continue;
+                try
+                {
+                    var (output, reader) = session.Outputs[0];
+                    return new Transport(session.Path, reader.CurrentTime, reader.TotalTime,
+                        output.PlaybackState == PlaybackState.Paused);
+                }
+                catch { }
+            }
+            return null;
+        }
+    }
+
+    /// <summary>Jumps the active sound to a fraction (0..1) of its length.</summary>
+    public void SeekActive(double fraction)
+    {
+        lock (_lock)
+        {
+            var session = ActiveSessionLocked();
+            if (session == null)
+                return;
+            foreach (var (_, reader) in session.Outputs)
+                try { reader.CurrentTime = reader.TotalTime * Math.Clamp(fraction, 0, 1); }
+                catch { }
+        }
+    }
+
+    /// <summary>Pauses or resumes the active sound; returns true if now playing.</summary>
+    public bool TogglePauseActive()
+    {
+        lock (_lock)
+        {
+            var session = ActiveSessionLocked();
+            if (session == null)
+                return false;
+            bool paused = session.Outputs[0].Output.PlaybackState == PlaybackState.Paused;
+            foreach (var (output, _) in session.Outputs)
+                try { if (paused) output.Play(); else output.Pause(); } catch { }
+            return paused; // was paused → now playing
+        }
+    }
+
+    private Session? ActiveSessionLocked()
+    {
+        for (int i = _sessions.Count - 1; i >= 0; i--)
+            if (_sessions[i].Outputs.Count > 0)
+                return _sessions[i];
+        return null;
+    }
+
     /// <summary>
     /// Silences the speakers copies of everything currently playing (the
     /// virtual-mic copies keep going). The echo escape hatch.

@@ -158,6 +158,72 @@ public partial class MainWindow : Window
                 pad.Progress = playing ? (_voicePlayer.ProgressOf(pad.FullPath) ?? 0) * 100 : 0;
             }
         }
+
+        UpdateTransportBar();
+    }
+
+    // ---------- now-playing transport ----------
+
+    private bool _seeking;
+    private bool _suppressSeekEvent;
+    private TimeSpan _transportDuration;
+
+    private void UpdateTransportBar()
+    {
+        var transport = _voicePlayer.ActiveTransport();
+        if (transport == null)
+        {
+            if (TransportBar.Visibility != Visibility.Collapsed)
+                TransportBar.Visibility = Visibility.Collapsed;
+            return;
+        }
+
+        TransportBar.Visibility = Visibility.Visible;
+        _transportDuration = transport.Duration;
+        TransportPlayBtn.Content = transport.IsPaused ? "▶" : "⏸";
+        TransportDur.Text = AppController.Fmt(transport.Duration);
+
+        if (!_seeking)
+        {
+            TransportPos.Text = AppController.Fmt(transport.Position);
+            double fraction = transport.Duration.TotalSeconds > 0
+                ? transport.Position.TotalSeconds / transport.Duration.TotalSeconds
+                : 0;
+            _suppressSeekEvent = true;
+            TransportSeek.Value = fraction * 1000;
+            _suppressSeekEvent = false;
+        }
+    }
+
+    private void OnTransportPlayPause(object sender, RoutedEventArgs e)
+    {
+        bool nowPlaying = _voicePlayer.TogglePauseActive();
+        TransportPlayBtn.Content = nowPlaying ? "⏸" : "▶";
+    }
+
+    private void OnTransportStop(object sender, RoutedEventArgs e)
+    {
+        _voicePlayer.Stop();
+        MicPlayBtn.Content = "Play to mic";
+        TransportBar.Visibility = Visibility.Collapsed;
+        RefreshSoundboard();
+    }
+
+    // _seeking blocks the timer from moving the thumb while the user drags.
+    private void OnSeekPressed(object sender, MouseButtonEventArgs e) => _seeking = true;
+
+    private void OnSeekReleased(object sender, MouseButtonEventArgs e) => _seeking = false;
+
+    private void OnSeekValueChanged(object sender, RoutedPropertyChangedEventArgs<double> e)
+    {
+        // Ignore only the timer's own position updates; every other change
+        // (click, drag, keyboard) is a real user seek and scrubs live.
+        if (_suppressSeekEvent)
+            return;
+        double fraction = TransportSeek.Value / 1000.0;
+        if (_transportDuration.TotalSeconds > 0)
+            TransportPos.Text = AppController.Fmt(_transportDuration * fraction);
+        _voicePlayer.SeekActive(fraction);
     }
 
     private void UpdateStaticTexts()

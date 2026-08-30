@@ -1137,11 +1137,13 @@ public partial class MainWindow : Window
     }
 
     /// <summary>Copies audio files into the library — into the selected category, if one is active.</summary>
-    private void ImportSounds(IEnumerable<string> files) => ImportSoundsTo(files, _selectedCategory);
+    private List<(string Source, string Target)> ImportSounds(IEnumerable<string> files)
+        => ImportSoundsTo(files, _selectedCategory);
 
-    private void ImportSoundsTo(IEnumerable<string> files, string? category)
+    /// <summary>Returns the paths of the files that landed in the library (source → target).</summary>
+    private List<(string Source, string Target)> ImportSoundsTo(IEnumerable<string> files, string? category)
     {
-        int imported = 0;
+        var landed = new List<(string, string)>();
         try
         {
             string dir = category == null
@@ -1155,7 +1157,7 @@ public partial class MainWindow : Window
                     continue;
                 string target = ReplaySaver.UniquePath(dir, Path.GetFileNameWithoutExtension(file), ext);
                 File.Copy(file, target);
-                imported++;
+                landed.Add((file, target));
             }
         }
         catch (Exception ex)
@@ -1164,8 +1166,9 @@ public partial class MainWindow : Window
             ShowSaveStatus("Import failed: " + ex.Message, ok: false);
         }
         RefreshSoundboard();
-        if (imported > 0)
-            ShowSaveStatus($"Added {imported} sound{(imported == 1 ? "" : "s")} to the soundboard.", ok: true);
+        if (landed.Count > 0)
+            ShowSaveStatus($"Added {landed.Count} sound{(landed.Count == 1 ? "" : "s")} to the soundboard.", ok: true);
+        return landed;
     }
 
     private void OnExportBoardClick(object sender, RoutedEventArgs e)
@@ -1228,7 +1231,19 @@ public partial class MainWindow : Window
             ShowSaveStatus("Select a replay in the list first.", ok: false);
             return;
         }
-        ImportSounds([item.FullPath]);
+
+        var landed = ImportSounds([item.FullPath]);
+        if (landed.Count == 0)
+            return;
+
+        // Carry the replay's label onto the new pad so it keeps its name.
+        var store = _controller.Soundboard;
+        string? label = store.GetLabel(item.FullPath);
+        if (!string.IsNullOrWhiteSpace(label))
+        {
+            store.SetLabel(landed[0].Target, label);
+            RefreshSoundboard();
+        }
         ShowSaveStatus($"{item.Name} added to the soundboard.", ok: true);
     }
 

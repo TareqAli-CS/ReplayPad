@@ -156,15 +156,8 @@ public sealed class AppSettings
     /// the real file.
     /// </summary>
     public void Save()
-    {
-        string path = Core.AppPaths.SettingsPath;
-        string temp = path + ".tmp";
-        File.WriteAllText(temp, JsonSerializer.Serialize(this, new JsonSerializerOptions { WriteIndented = true }));
-        if (File.Exists(path))
-            File.Replace(temp, path, path + ".bak");
-        else
-            File.Move(temp, path);
-    }
+        => Core.AtomicFile.WriteAllText(Core.AppPaths.SettingsPath,
+            JsonSerializer.Serialize(this, new JsonSerializerOptions { WriteIndented = true }));
 
     public void Validate()
     {

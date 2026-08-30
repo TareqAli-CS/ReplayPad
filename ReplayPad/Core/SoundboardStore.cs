@@ -47,17 +47,13 @@ public sealed class SoundboardStore
         }
     }
 
-    /// <summary>Atomic save with a .bak of the previous version (kill-safe).</summary>
+    /// <summary>Atomic, retrying save with a .bak of the previous version (kill-safe).</summary>
     private void Save()
     {
         try
         {
-            string temp = _storePath + ".tmp";
-            File.WriteAllText(temp, JsonSerializer.Serialize(_data, new JsonSerializerOptions { WriteIndented = true }));
-            if (File.Exists(_storePath))
-                File.Replace(temp, _storePath, _storePath + ".bak");
-            else
-                File.Move(temp, _storePath);
+            AtomicFile.WriteAllText(_storePath,
+                JsonSerializer.Serialize(_data, new JsonSerializerOptions { WriteIndented = true }));
         }
         catch (Exception ex)
         {

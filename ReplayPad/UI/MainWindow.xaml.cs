@@ -21,7 +21,9 @@ public partial class MainWindow : Window
     private double _displayedLevel;
     private int _waveTicks;
     private bool _loadingUi;
-    private readonly Dictionary<string, (DateTime Stamp, long Size, TimeSpan Duration)> _durationCache =
+    private bool _loadingDurations;
+    // Thread-safe: durations are filled in on a background thread.
+    private readonly System.Collections.Concurrent.ConcurrentDictionary<string, (DateTime Stamp, long Size, TimeSpan Duration)> _durationCache =
         new(StringComparer.OrdinalIgnoreCase);
 
     private sealed record RecentItem(string Name, string Details, string FullPath);
@@ -375,43 +377,83 @@ public partial class MainWindow : Window
 
     private void RefreshRecentList()
     {
-        var items = new List<RecentItem>();
+        List<FileInfo> all = [];
         try
         {
             string folder = _controller.Settings.ResolveOutputFolder();
-            var store = _controller.Soundboard;
             if (Directory.Exists(folder))
-            {
-                items = new DirectoryInfo(folder)
+                all = new DirectoryInfo(folder)
                     .EnumerateFiles()
                     .Where(f => f.Extension is ".mp3" or ".wav")
                     .OrderByDescending(f => f.LastWriteTime)
-                    .Take(12)
-                    .Select(f =>
-                    {
-                        string? label = store.GetLabel(f.FullName);
-                        int? slot = store.SlotOf(f.FullName);
-                        TimeSpan? duration = GetDuration(f);
-                        string details = $"{f.Length / 1024.0 / 1024.0:0.0} MB · {f.LastWriteTime:ddd HH:mm}";
-                        if (duration is TimeSpan d)
-                            details = $"{AppController.Fmt(d)} · " + details;
-                        if (label != null)
-                            details = f.Name + " · " + details;
-                        if (slot != null)
-                            details += $"  ·  ⌨ Ctrl+Alt+{slot}";
-                        return new RecentItem(label ?? f.Name, details, f.FullName);
-                    })
                     .ToList();
-            }
         }
         catch (Exception ex)
         {
             Logger.Log("Could not list recent replays: " + ex.Message);
         }
 
+        var store = _controller.Soundboard;
+        string query = RecentSearchBox.Text.Trim();
+        var missing = new List<FileInfo>();
+
+        var items = all
+            .Select(f => (File: f, Label: store.GetLabel(f.FullName)))
+            .Where(x => query.Length == 0 ||
+                        (x.Label ?? x.File.Name).Contains(query, StringComparison.OrdinalIgnoreCase) ||
+                        x.File.Name.Contains(query, StringComparison.OrdinalIgnoreCase))
+            .Select(x =>
+            {
+                var f = x.File;
+                int? slot = store.SlotOf(f.FullName);
+                TimeSpan? duration = TryCachedDuration(f);
+                if (duration == null)
+                    missing.Add(f);
+                string details = $"{f.Length / 1024.0 / 1024.0:0.0} MB · {f.LastWriteTime:ddd HH:mm}";
+                if (duration is TimeSpan d)
+                    details = $"{AppController.Fmt(d)} · " + details;
+                if (x.Label != null)
+                    details = f.Name + " · " + details;
+                if (slot != null)
+                    details += $"  ·  ⌨ Ctrl+Alt+{slot}";
+                return new RecentItem(x.Label ?? f.Name, details, f.FullName);
+            })
+            .ToList();
+
         RecentList.ItemsSource = items;
+        RecentTitle.Text = all.Count == 0 ? "Recent replays"
+            : query.Length > 0 ? $"Recent replays — {items.Count} of {all.Count}"
+            : $"Recent replays ({all.Count})";
+        NoRecentText.Text = all.Count == 0
+            ? "No replays yet — something worth keeping? Hit save."
+            : "No replays match your search.";
         NoRecentText.Visibility = items.Count == 0 ? Visibility.Visible : Visibility.Collapsed;
+
+        // Durations are read off the UI thread (opening files is slow with a
+        // large library); refresh once they're cached so they pop in.
+        if (missing.Count > 0 && !_loadingDurations)
+        {
+            _loadingDurations = true;
+            var toLoad = missing.ToList();
+            Task.Run(() =>
+            {
+                foreach (var f in toLoad)
+                    try { GetDuration(f); } catch { }
+            }).ContinueWith(_ => Dispatcher.BeginInvoke(() =>
+            {
+                _loadingDurations = false;
+                RefreshRecentList();
+            }));
+        }
     }
+
+    private void OnRecentSearchChanged(object sender, System.Windows.Controls.TextChangedEventArgs e)
+        => RefreshRecentList();
+
+    private TimeSpan? TryCachedDuration(FileInfo f)
+        => _durationCache.TryGetValue(f.FullName, out var c) && c.Stamp == f.LastWriteTime && c.Size == f.Length
+            ? c.Duration
+            : null;
 
     /// <summary>
     /// Audio duration via Media Foundation, cached by (path, size, mtime)

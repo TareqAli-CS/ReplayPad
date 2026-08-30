@@ -129,6 +129,31 @@
                         <TextBox x:Name="RecentSearchBox" DockPanel.Dock="Top" Margin="0,10,0,0"
                                  TextChanged="OnRecentSearchChanged"
                                  ToolTip="Filter replays by name"/>
+
+                        <!-- Pagination bar -->
+                        <Grid x:Name="RecentPager" DockPanel.Dock="Bottom" Margin="0,10,0,0">
+                            <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                                <TextBlock Text="Show" Style="{StaticResource Dim}" FontSize="12" VerticalAlignment="Center"/>
+                                <ComboBox x:Name="RecentPageSizeBox" Width="66" Height="28" Margin="8,0,0,0"
+                                          SelectionChanged="OnRecentPageSizeChanged" VerticalAlignment="Center">
+                                    <ComboBoxItem Content="15"/>
+                                    <ComboBoxItem Content="30"/>
+                                    <ComboBoxItem Content="50"/>
+                                    <ComboBoxItem Content="All"/>
+                                </ComboBox>
+                                <TextBlock Text="per page" Style="{StaticResource Dim}" FontSize="12"
+                                           VerticalAlignment="Center" Margin="8,0,0,0"/>
+                            </StackPanel>
+                            <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" VerticalAlignment="Center">
+                                <Button x:Name="RecentPrevBtn" Style="{StaticResource Btn}" Content="◀ Prev"
+                                        Padding="10,5" FontSize="12" Click="OnRecentPrev"/>
+                                <TextBlock x:Name="RecentPageText" Style="{StaticResource Dim}" FontSize="12"
+                                           VerticalAlignment="Center" Margin="10,0,10,0" Text="Page 1 of 1"/>
+                                <Button x:Name="RecentNextBtn" Style="{StaticResource Btn}" Content="Next ▶"
+                                        Padding="10,5" FontSize="12" Click="OnRecentNext"/>
+                            </StackPanel>
+                        </Grid>
+
                         <Grid Margin="0,10,0,0">
                             <ListBox x:Name="RecentList" MouseDoubleClick="OnRecentDoubleClick"
                                      PreviewMouseRightButtonDown="OnRecentPreviewRightClick"

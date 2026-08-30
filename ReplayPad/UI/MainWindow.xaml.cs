@@ -22,6 +22,8 @@ public partial class MainWindow : Window
     private int _waveTicks;
     private bool _loadingUi;
     private bool _loadingDurations;
+    private int _recentPage;
+    private int _recentPageSize = 15; // 0 = All
     // Thread-safe: durations are filled in on a background thread.
     private readonly System.Collections.Concurrent.ConcurrentDictionary<string, (DateTime Stamp, long Size, TimeSpan Duration)> _durationCache =
         new(StringComparer.OrdinalIgnoreCase);
@@ -78,6 +80,7 @@ public partial class MainWindow : Window
         MirrorCheck.Checked += OnMirrorToggled;
         MirrorCheck.Unchecked += OnMirrorToggled;
 
+        RecentPageSizeBox.SelectedIndex = 0; // "15"; also triggers the first list build
         UpdateStaticTexts();
         RefreshRecentList();
         RefreshSoundboard(); // soundboard is the home tab
@@ -395,39 +398,53 @@ public partial class MainWindow : Window
 
         var store = _controller.Soundboard;
         string query = RecentSearchBox.Text.Trim();
-        var missing = new List<FileInfo>();
 
-        var items = all
+        // Search filter over the whole library.
+        var filtered = all
             .Select(f => (File: f, Label: store.GetLabel(f.FullName)))
             .Where(x => query.Length == 0 ||
                         (x.Label ?? x.File.Name).Contains(query, StringComparison.OrdinalIgnoreCase) ||
                         x.File.Name.Contains(query, StringComparison.OrdinalIgnoreCase))
-            .Select(x =>
-            {
-                var f = x.File;
-                int? slot = store.SlotOf(f.FullName);
-                TimeSpan? duration = TryCachedDuration(f);
-                if (duration == null)
-                    missing.Add(f);
-                string details = $"{f.Length / 1024.0 / 1024.0:0.0} MB · {f.LastWriteTime:ddd HH:mm}";
-                if (duration is TimeSpan d)
-                    details = $"{AppController.Fmt(d)} · " + details;
-                if (x.Label != null)
-                    details = f.Name + " · " + details;
-                if (slot != null)
-                    details += $"  ·  ⌨ Ctrl+Alt+{slot}";
-                return new RecentItem(x.Label ?? f.Name, details, f.FullName);
-            })
             .ToList();
+
+        // Paging (page size 0 = All). Clamp the page in case the count shrank.
+        int pageSize = _recentPageSize <= 0 ? Math.Max(filtered.Count, 1) : _recentPageSize;
+        int pageCount = Math.Max(1, (filtered.Count + pageSize - 1) / pageSize);
+        _recentPage = Math.Clamp(_recentPage, 0, pageCount - 1);
+        var page = filtered.Skip(_recentPage * pageSize).Take(pageSize).ToList();
+
+        var missing = new List<FileInfo>();
+        var items = page.Select(x =>
+        {
+            var f = x.File;
+            int? slot = store.SlotOf(f.FullName);
+            TimeSpan? duration = TryCachedDuration(f);
+            if (duration == null)
+                missing.Add(f);
+            string details = $"{f.Length / 1024.0 / 1024.0:0.0} MB · {f.LastWriteTime:ddd HH:mm}";
+            if (duration is TimeSpan d)
+                details = $"{AppController.Fmt(d)} · " + details;
+            if (x.Label != null)
+                details = f.Name + " · " + details;
+            if (slot != null)
+                details += $"  ·  ⌨ Ctrl+Alt+{slot}";
+            return new RecentItem(x.Label ?? f.Name, details, f.FullName);
+        }).ToList();
 
         RecentList.ItemsSource = items;
         RecentTitle.Text = all.Count == 0 ? "Recent replays"
-            : query.Length > 0 ? $"Recent replays — {items.Count} of {all.Count}"
+            : query.Length > 0 ? $"Recent replays — {filtered.Count} of {all.Count}"
             : $"Recent replays ({all.Count})";
         NoRecentText.Text = all.Count == 0
             ? "No replays yet — something worth keeping? Hit save."
             : "No replays match your search.";
         NoRecentText.Visibility = items.Count == 0 ? Visibility.Visible : Visibility.Collapsed;
+
+        // Pager row: hidden when a single page holds everything.
+        RecentPageText.Text = $"Page {_recentPage + 1} of {pageCount}";
+        RecentPrevBtn.IsEnabled = _recentPage > 0;
+        RecentNextBtn.IsEnabled = _recentPage < pageCount - 1;
+        RecentPager.Visibility = filtered.Count == 0 ? Visibility.Collapsed : Visibility.Visible;
 
         // Durations are read off the UI thread (opening files is slow with a
         // large library); refresh once they're cached so they pop in.
@@ -448,7 +465,36 @@ public partial class MainWindow : Window
     }
 
     private void OnRecentSearchChanged(object sender, System.Windows.Controls.TextChangedEventArgs e)
-        => RefreshRecentList();
+    {
+        _recentPage = 0;
+        RefreshRecentList();
+    }
+
+    private void OnRecentPageSizeChanged(object sender, System.Windows.Controls.SelectionChangedEventArgs e)
+    {
+        if (RecentPageSizeBox.SelectedItem is not System.Windows.Controls.ComboBoxItem sel)
+            return;
+        _recentPageSize = sel.Content as string == "All" ? 0 : int.Parse((string)sel.Content!);
+        _recentPage = 0;
+        RefreshRecentList();
+    }
+
+    private void OnRecentPrev(object sender, RoutedEventArgs e)
+    {
+        if (_recentPage > 0)
+        {
+            _recentPage--;
+            RefreshRecentList();
+            RecentList.ScrollIntoView(RecentList.Items.Count > 0 ? RecentList.Items[0] : null);
+        }
+    }
+
+    private void OnRecentNext(object sender, RoutedEventArgs e)
+    {
+        _recentPage++;
+        RefreshRecentList();
+        RecentList.ScrollIntoView(RecentList.Items.Count > 0 ? RecentList.Items[0] : null);
+    }
 
     private TimeSpan? TryCachedDuration(FileInfo f)
         => _durationCache.TryGetValue(f.FullName, out var c) && c.Stamp == f.LastWriteTime && c.Size == f.Length

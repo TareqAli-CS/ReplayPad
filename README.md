@@ -27,7 +27,7 @@ Someone said something legendary in the call? `Ctrl+Alt+D` clips it, trim it in 
 - Rolling in-RAM buffer (1–30 min): nothing written to disk until you save; `Ctrl+Alt+S` saves everything, `Ctrl+Alt+D` the last 30 s (all configurable)
 - Capture the **whole desktop**, **one specific app** (just the game, just Discord), everything **except** one app, or the **microphone** — with live level meter and waveform
 - Explicit **Start/Stop** control; always launches recording
-- Recent replays list showing **all** your replays with a live **search box** and count: play to mic, edit, rename, delete (to Recycle Bin)
+- Recent replays list with **pagination** (15/30/50 per page or **All**), a live **search box** and a count: play to mic, edit, rename, delete (to Recycle Bin)
 
 **Editor**
 - Two **range handles** under the waveform — saving exports exactly the enclosed range, so trimming is drag → Save as copy

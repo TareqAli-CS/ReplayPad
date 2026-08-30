@@ -2,7 +2,7 @@
 ; Build: ISCC.exe ReplayPad.iss   (expects the app published to ..\publish)
 
 #define MyAppName "ReplayPad"
-#define MyAppVersion "1.3.2"
+#define MyAppVersion "1.3.3"
 #define MyAppPublisher "TareqAli-CS"
 #define MyAppURL "https://github.com/TareqAli-CS/ReplayPad"
 #define MyAppExeName "ReplayPad.exe"

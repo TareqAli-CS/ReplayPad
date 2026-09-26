@@ -47,9 +47,44 @@ public sealed class SoundboardStore
         }
     }
 
+    private int _batchDepth;
+    private bool _batchDirty;
+
+    /// <summary>
+    /// Defers saving until the returned scope is disposed — for bulk edits
+    /// (restoring a backup) that would otherwise rewrite the file per call.
+    /// </summary>
+    public IDisposable Batch()
+    {
+        _batchDepth++;
+        return new BatchScope(this);
+    }
+
+    private sealed class BatchScope(SoundboardStore store) : IDisposable
+    {
+        private bool _disposed;
+
+        public void Dispose()
+        {
+            if (_disposed)
+                return;
+            _disposed = true;
+            if (--store._batchDepth == 0 && store._batchDirty)
+            {
+                store._batchDirty = false;
+                store.Save();
+            }
+        }
+    }
+
     /// <summary>Atomic, retrying save with a .bak of the previous version (kill-safe).</summary>
     private void Save()
     {
+        if (_batchDepth > 0)
+        {
+            _batchDirty = true;
+            return;
+        }
         try
         {
             AtomicFile.WriteAllText(_storePath,

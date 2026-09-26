@@ -298,6 +298,21 @@ public partial class MainWindow : Window
         ShowSaveStatus("Buffer cleared — recording continues from now", ok: true);
     }
 
+    private void OnBackupClick(object sender, RoutedEventArgs e)
+    {
+        var dialog = new BackupWindow(_controller) { Owner = this };
+        dialog.ShowDialog();
+        if (dialog.Restored)
+        {
+            UpdateStaticTexts();
+            RefreshSoundboard();
+            RefreshRecentList();
+            _loadingUi = true;
+            MirrorCheck.IsChecked = _controller.Settings.VoiceAlsoSpeakers;
+            _loadingUi = false;
+        }
+    }
+
     private bool _blockedDialogOpen;
 
     /// <summary>The output folder is blocked; the save was rescued — guide the fix.</summary>
@@ -1059,6 +1074,12 @@ public partial class MainWindow : Window
         _voicePlayer.Stop();
         MicPlayBtn.Content = "Play to mic";
         RefreshSoundboard();
+    }
+
+    private void OnLoopToggle(object sender, RoutedEventArgs e)
+    {
+        _voicePlayer.Loop = !_voicePlayer.Loop;
+        LoopBtn.Style = (Style)FindResource(_voicePlayer.Loop ? "BtnAccent" : "Btn");
     }
 
     private void OnPadPinClick(object sender, RoutedEventArgs e)

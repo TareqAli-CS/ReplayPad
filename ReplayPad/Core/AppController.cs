@@ -35,6 +35,9 @@ public sealed class AppController : IDisposable
     /// <summary>Labels and soundboard slot assignments.</summary>
     public SoundboardStore Soundboard { get; } = new();
 
+    /// <summary>Google Drive / file backup and restore of the whole library.</summary>
+    public CloudBackup Backup { get; }
+
     /// <summary>Raised from a background thread after a successful save.</summary>
     public event Action<string, TimeSpan>? ReplaySaved;
     public event Action<string>? SaveFailed;
@@ -63,6 +66,7 @@ public sealed class AppController : IDisposable
     public AppController(AppSettings settings)
     {
         Settings = settings;
+        Backup = new CloudBackup(this);
         _ring = CreateRing(settings);
         _waveform = new WaveformHistory(settings.BufferMinutes * 60);
         _engine = new AudioCaptureEngine(settings, _ring, _waveform);
@@ -136,9 +140,13 @@ public sealed class AppController : IDisposable
             _hotkeys.Unregister(id);
         _customHotkeyPaths.Clear();
         int nextId = CustomHotkeyBase;
+        // Only sounds in the current library get hotkeys: a restored copy or
+        // an old library folder must not fight the live board for combos.
+        string libraryRoot = Path.GetFullPath(Settings.ResolveOutputFolder()).TrimEnd(Path.DirectorySeparatorChar)
+                             + Path.DirectorySeparatorChar;
         foreach (var (path, hotkey) in Soundboard.CustomHotkeys)
         {
-            if (!File.Exists(path))
+            if (!File.Exists(path) || !path.StartsWith(libraryRoot, StringComparison.OrdinalIgnoreCase))
                 continue;
             string soundName = Soundboard.GetLabel(path) ?? Path.GetFileNameWithoutExtension(path);
             Add(nextId++, hotkey, $"sound \"{soundName}\"", path);

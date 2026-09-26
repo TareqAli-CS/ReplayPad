@@ -22,6 +22,7 @@ Someone said something legendary in the call? `Ctrl+Alt+D` clips it, trim it in 
 - **Export / Import** the whole board as a zip — share your soundboard with friends, sounds + labels + colors + hotkeys included
 - **Quick launcher** — `Ctrl+Alt+Q` anywhere (even mid-game): type two letters, Enter, the sound plays into your call
 - **Overlap or interrupt** mode: layer sounds over each other, or let each new sound cut the previous one
+- **🔁 Loop** toggle: keep auto-replaying each sound (great for looping music or ambience) until you turn it off or stop the sound
 
 **Replay buffer**
 - Rolling in-RAM buffer (1–30 min): nothing written to disk until you save; `Ctrl+Alt+S` saves everything, `Ctrl+Alt+D` the last 30 s (all configurable)
@@ -39,6 +40,12 @@ Someone said something legendary in the call? `Ctrl+Alt+D` clips it, trim it in 
 - Right-click any replay or pad → **Transcribe…** — speech-to-text via Groq's hosted Whisper (free API key), with Arabic/English/mixed-language support, copy button, and a `.txt` saved next to the audio
 - **Synced playback**: play the audio inside the transcript window — the current line highlights and scrolls with the sound, and **clicking any line jumps playback to that moment**
 - Needs a free key from [console.groq.com](https://console.groq.com) (⚙ Settings → Transcription). Note: the audio is uploaded to Groq for processing.
+
+**Backup & restore**
+- **☁ Google Drive backup** — sign in with Google and back up every sound, category (even empty ones), replay, transcript, label, color, hotkey and your settings to **your own Drive**; restore it all on any PC. No ReplayPad account, no server
+- **Automatic backups** (daily / every 3 days / weekly), keeping the last few per PC
+- **Backup to a file** — the same complete backup as one `.zip` for a USB stick or anywhere else
+- Restores never overwrite or delete anything
 
 **App**
 - Dark UI with an icon rail switching between full-window Soundboard and Replay modes
@@ -70,6 +77,8 @@ publish\ReplayPad.exe
 
 The installer itself is built from [installer/ReplayPad.iss](installer/ReplayPad.iss) with [Inno Setup](https://jrsoftware.org/isinfo.php).
 
+Google Drive backup needs an OAuth client of your own when building from source — see [docs/google-drive-setup.md](docs/google-drive-setup.md). Without it everything works except the Drive part (file backups still do).
+
 ## Quick Start
 
 1. **Run the app** — it opens on the soundboard and immediately starts buffering desktop audio (red dot in the rail = recording).
@@ -91,6 +100,7 @@ Windows doesn't let apps inject audio into a physical microphone, so every sound
 
 - **Play:** click a pad (green border = playing; click again stops it). *Stop all* or `Ctrl+Alt+0` silences everything instantly.
 - **Scrub / pause:** while a sound plays, a transport bar appears at the bottom — drag the seek slider to jump to any point (great for starting a music track from the middle), pause/resume, and see position / duration.
+- **Loop:** click **🔁 Loop** (top-right) to auto-replay — every sound repeats from the start when it ends and keeps going until you click Loop again or stop the sound. Toggle it on before or during playback.
 - **Organize:** ＋ Category creates a category (a subfolder of the library — everything stays visible in Explorer). Drag pads onto chips to move sounds (**Ctrl+drag copies**), or right-click → *Move / copy to category…*.
 - **Customize:** right-click → *Rename / hotkey / volume…* for the label, file name, **pad color**, per-sound volume, category, a `Ctrl+Alt+1..9` slot **or any custom hotkey combo** — click the hotkey field and just **press the combo** to set it (Backspace removes it). *Pin / unpin* keeps favorites at the top.
 - **Share:** the **Export** button zips the whole board (sounds + labels + colors + hotkeys + order); **Import** merges someone else's board into yours without overwriting anything.
@@ -103,6 +113,18 @@ Windows doesn't let apps inject audio into a physical microphone, so every sound
 Switch to 🎙 in the rail for the recorder: live level meter, buffer fill, waveform of the buffered audio, **■ Stop / ▶ Start** control, and the recent replays list (double-click a replay to fire it into the call, right-click for everything else). The buffer keeps only the last N minutes in RAM and writes nothing until you save — silence stays accurate, device switches (plugging in headphones) are handled, and the app always launches recording.
 
 **Capture sources** (⚙ Settings → Capture): entire desktop, microphone only, both mixed — or a **single app** picked from the apps currently playing audio (also invertible: everything *except* that app). Per-app capture means your music never ends up in the clip.
+
+## Backup & Restore
+
+Click **☁** in the rail.
+
+- **Google Drive:** *Sign in with Google* → approve in the browser → **☁ Back up now**. Your backups appear in a **ReplayPad Backups** folder in your Drive, and in the list in the window (with date, PC name and contents). On another PC: install ReplayPad, sign in with the same account, pick a backup → **Restore selected**.
+- **Automatic:** tick *Back up automatically* and pick how often; ReplayPad keeps the newest 3 / 5 / 10 backups of each PC and deletes older ones (never another PC's).
+- **File:** *Save backup to file…* / *Restore from file…* — same content, no account needed.
+
+A backup contains the soundboard with every category folder, the replays (optional) with their transcripts, all labels / colors / volumes / pins / order / hotkeys, and your settings (never your library path or Groq API key). **Restoring only adds:** files you already have are kept (a different file with the same name is restored as ` (1)`), labels and colors only fill in where yours are empty, and settings are only replaced if you tick *also restore settings*.
+
+**Privacy:** ReplayPad talks to Google directly — there's no ReplayPad server. It asks only for the `drive.file` permission, so it can see the backups it created and **nothing else in your Drive**. Your sign-in is stored on your PC only, encrypted with your Windows account; *Sign out* revokes it. Full details: [PRIVACY.md](PRIVACY.md).
 
 ## Default Hotkeys
 

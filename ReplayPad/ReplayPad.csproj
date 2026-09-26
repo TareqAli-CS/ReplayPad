@@ -9,7 +9,7 @@
     <ImplicitUsings>enable</ImplicitUsings>
     <RootNamespace>ReplayPad</RootNamespace>
     <AssemblyName>ReplayPad</AssemblyName>
-    <Version>1.3.3</Version>
+    <Version>1.3.4</Version>
     <ApplicationHighDpiMode>PerMonitorV2</ApplicationHighDpiMode>
     <ApplicationIcon>app.ico</ApplicationIcon>
   </PropertyGroup>
@@ -26,8 +26,19 @@
     <Using Include="System.IO" />
   </ItemGroup>
 
+  <!-- Google Drive backup: the OAuth client (a "Desktop app" client from
+       Google Cloud Console) comes from the git-ignored google-oauth.props,
+       or from GoogleClientId / GoogleClientSecret environment variables.
+       Without it the build still works; only Drive backup is disabled. -->
+  <Import Project="google-oauth.props" Condition="Exists('google-oauth.props')" />
+  <ItemGroup>
+    <AssemblyMetadata Include="GoogleClientId" Value="$(GoogleClientId)" />
+    <AssemblyMetadata Include="GoogleClientSecret" Value="$(GoogleClientSecret)" />
+  </ItemGroup>
+
   <ItemGroup>
     <PackageReference Include="NAudio" Version="2.2.1" />
+    <PackageReference Include="System.Security.Cryptography.ProtectedData" Version="10.0.12" />
   </ItemGroup>
 
   <ItemGroup>

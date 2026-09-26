@@ -1,0 +1,143 @@
+<Window x:Class="ReplayPad.UI.BackupWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="Backup &amp; restore"
+        Icon="/app.ico"
+        Width="560" SizeToContent="Height" ResizeMode="NoResize"
+        Background="{StaticResource BgBrush}"
+        WindowStartupLocation="CenterOwner"
+        Closing="OnClosing">
+    <StackPanel Margin="18,14,18,16">
+
+        <!-- ===== Google Drive ===== -->
+        <Border Style="{StaticResource Card}">
+            <StackPanel>
+                <TextBlock Text="☁  Google Drive backup" Style="{StaticResource H2}"/>
+                <TextBlock Style="{StaticResource Dim}" FontSize="11.5" TextWrapping="Wrap" Margin="0,4,0,0"
+                           Text="Back up every sound, category, replay, label, color and hotkey to your own Google Drive — and restore it on any PC. ReplayPad can only see the backups it creates, nothing else in your Drive."/>
+
+                <TextBlock x:Name="NotConfiguredText" Visibility="Collapsed" Foreground="{StaticResource WarnBrush}"
+                           FontSize="11.5" TextWrapping="Wrap" Margin="0,10,0,0"
+                           Text="Google backup isn't set up in this build of ReplayPad. You can still back up to a file below."/>
+
+                <Grid x:Name="AccountRow" Margin="0,12,0,0">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="*"/>
+                        <ColumnDefinition Width="Auto"/>
+                    </Grid.ColumnDefinitions>
+                    <TextBlock x:Name="AccountText" VerticalAlignment="Center" FontSize="12.5" Text="Not signed in"/>
+                    <StackPanel Grid.Column="1" Orientation="Horizontal">
+                        <Button x:Name="SignInBtn" Style="{StaticResource BtnAccent}" Padding="12,6"
+                                Content="Sign in with Google" Click="OnSignInClick"/>
+                        <Button x:Name="SignOutBtn" Style="{StaticResource Btn}" Padding="12,6"
+                                Content="Sign out" Click="OnSignOutClick" Visibility="Collapsed"/>
+                    </StackPanel>
+                </Grid>
+
+                <StackPanel x:Name="SignedInPanel" Visibility="Collapsed">
+                    <Grid Margin="0,14,0,0">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="Auto"/>
+                            <ColumnDefinition Width="*"/>
+                        </Grid.ColumnDefinitions>
+                        <Button x:Name="BackUpBtn" Style="{StaticResource BtnAccent}" Padding="16,8"
+                                Content="☁  Back up now" Click="OnBackUpClick"/>
+                        <StackPanel Grid.Column="1" Margin="12,0,0,0" VerticalAlignment="Center">
+                            <TextBlock x:Name="SummaryText" FontSize="11.5" TextWrapping="Wrap"/>
+                            <TextBlock x:Name="LastBackupText" Style="{StaticResource Dim}" FontSize="11" Margin="0,2,0,0"/>
+                        </StackPanel>
+                    </Grid>
+
+                    <WrapPanel Margin="0,12,0,0">
+                        <CheckBox x:Name="AutoCheck" Content="Back up automatically" FontSize="11.5"
+                                  VerticalAlignment="Center" Checked="OnPrefsChanged" Unchecked="OnPrefsChanged"/>
+                        <ComboBox x:Name="EveryBox" Width="120" Margin="8,0,0,0" FontSize="11.5"
+                                  SelectionChanged="OnPrefsChanged">
+                            <ComboBoxItem Content="every day" Tag="1"/>
+                            <ComboBoxItem Content="every 3 days" Tag="3"/>
+                            <ComboBoxItem Content="every week" Tag="7"/>
+                        </ComboBox>
+                        <TextBlock Style="{StaticResource Dim}" FontSize="11.5" Text="keep last" Margin="12,0,6,0"
+                                   VerticalAlignment="Center"/>
+                        <ComboBox x:Name="KeepBox" Width="56" FontSize="11.5" SelectionChanged="OnPrefsChanged">
+                            <ComboBoxItem Content="3"/>
+                            <ComboBoxItem Content="5"/>
+                            <ComboBoxItem Content="10"/>
+                        </ComboBox>
+                        <TextBlock Style="{StaticResource Dim}" FontSize="11.5" Text="per PC" Margin="6,0,0,0"
+                                   VerticalAlignment="Center"/>
+                    </WrapPanel>
+
+                    <Grid Margin="0,16,0,6">
+                        <TextBlock Text="Backups in your Drive" FontWeight="SemiBold" FontSize="12.5"
+                                   VerticalAlignment="Center"/>
+                        <Button Style="{StaticResource Btn}" HorizontalAlignment="Right" Padding="10,3" FontSize="11"
+                                Content="↻ Refresh" Click="OnRefreshClick"/>
+                    </Grid>
+                    <Grid>
+                        <ListBox x:Name="BackupList" Height="150" SelectionChanged="OnBackupSelected"
+                                 ScrollViewer.HorizontalScrollBarVisibility="Disabled">
+                            <ListBox.ItemTemplate>
+                                <DataTemplate>
+                                    <StackPanel>
+                                        <TextBlock Text="{Binding Title}" FontSize="12.5"/>
+                                        <TextBlock Text="{Binding Details}" FontSize="11"
+                                                   Foreground="{StaticResource DimBrush}" Margin="0,1,0,0"/>
+                                    </StackPanel>
+                                </DataTemplate>
+                            </ListBox.ItemTemplate>
+                        </ListBox>
+                        <TextBlock x:Name="EmptyListText" Style="{StaticResource Dim}" FontSize="11.5"
+                                   HorizontalAlignment="Center" VerticalAlignment="Center" TextWrapping="Wrap"
+                                   TextAlignment="Center" Margin="20,0" IsHitTestVisible="False"
+                                   Text="No backups yet — press “Back up now”."/>
+                    </Grid>
+                    <StackPanel Orientation="Horizontal" Margin="0,8,0,0">
+                        <Button x:Name="RestoreBtn" Style="{StaticResource Btn}" Padding="12,6" IsEnabled="False"
+                                Content="Restore selected" Click="OnRestoreDriveClick"/>
+                        <Button x:Name="DeleteBtn" Style="{StaticResource Btn}" Padding="12,6" Margin="8,0,0,0"
+                                IsEnabled="False" Content="Delete" Click="OnDeleteClick"/>
+                    </StackPanel>
+                </StackPanel>
+            </StackPanel>
+        </Border>
+
+        <!-- ===== Offline file ===== -->
+        <Border Style="{StaticResource Card}" Margin="0,12,0,0">
+            <StackPanel>
+                <TextBlock Text="Backup file" Style="{StaticResource H2}"/>
+                <TextBlock Style="{StaticResource Dim}" FontSize="11.5" TextWrapping="Wrap" Margin="0,4,0,10"
+                           Text="The same complete backup as a single .zip — keep it on a USB stick or anywhere you like."/>
+                <StackPanel Orientation="Horizontal">
+                    <Button x:Name="SaveFileBtn" Style="{StaticResource Btn}" Padding="12,6"
+                            Content="Save backup to file…" Click="OnSaveFileClick"/>
+                    <Button x:Name="RestoreFileBtn" Style="{StaticResource Btn}" Padding="12,6" Margin="8,0,0,0"
+                            Content="Restore from file…" Click="OnRestoreFileClick"/>
+                </StackPanel>
+            </StackPanel>
+        </Border>
+
+        <!-- ===== Options & progress ===== -->
+        <StackPanel Margin="2,12,2,0">
+            <CheckBox x:Name="IncludeReplaysCheck" Content="Include replays (not just soundboard sounds)" FontSize="11.5"
+                      Checked="OnPrefsChanged" Unchecked="OnPrefsChanged"/>
+            <CheckBox x:Name="RestoreSettingsCheck" FontSize="11.5" Margin="0,6,0,0"
+                      Content="When restoring, also restore settings (hotkeys, capture, volumes)"/>
+        </StackPanel>
+
+        <Grid x:Name="ProgressRow" Margin="2,14,2,0" Visibility="Collapsed">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="*"/>
+                <ColumnDefinition Width="Auto"/>
+            </Grid.ColumnDefinitions>
+            <StackPanel>
+                <ProgressBar x:Name="Progress" Height="6" Maximum="1"/>
+                <TextBlock x:Name="ProgressText" Style="{StaticResource Dim}" FontSize="11" Margin="0,5,0,0"/>
+            </StackPanel>
+            <Button x:Name="CancelBtn" Grid.Column="1" Style="{StaticResource Btn}" Padding="12,4" Margin="12,0,0,0"
+                    VerticalAlignment="Top" Content="Cancel" Click="OnCancelClick"/>
+        </Grid>
+
+        <TextBlock x:Name="StatusText" FontSize="11.5" TextWrapping="Wrap" Margin="2,12,2,0" Visibility="Collapsed"/>
+    </StackPanel>
+</Window>

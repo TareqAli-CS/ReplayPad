@@ -88,6 +88,8 @@ public partial class App : Application
         if (!e.Args.Contains("--minimized"))
             ShowMainWindow();
 
+        StartAutoBackupTimer();
+
         // Quiet startup update check: only speaks up when something newer exists.
         _ = Task.Run(async () =>
         {
@@ -120,6 +122,45 @@ public partial class App : Application
             Logger.Log("Unobserved task exception (ignored): " + args.Exception);
             args.SetObserved();
         };
+    }
+
+    private System.Windows.Threading.DispatcherTimer? _backupTimer;
+    private bool _autoBackupFailedNotified;
+
+    /// <summary>
+    /// Scheduled Google Drive backups: checked shortly after startup, then
+    /// every 30 minutes; runs only when due, signed in and nothing else is
+    /// running. Stays silent on success, warns once on failure.
+    /// </summary>
+    private void StartAutoBackupTimer()
+    {
+        _backupTimer = new System.Windows.Threading.DispatcherTimer { Interval = TimeSpan.FromMinutes(2) };
+        _backupTimer.Tick += async (_, _) =>
+        {
+            _backupTimer.Interval = TimeSpan.FromMinutes(30);
+            var backup = _controller?.Backup;
+            if (backup == null || backup.IsBusy || !backup.IsAutoBackupDue)
+                return;
+            try
+            {
+                using var cts = new CancellationTokenSource(TimeSpan.FromHours(2));
+                await backup.BackUpToDriveAsync(null, cts.Token);
+                _autoBackupFailedNotified = false;
+            }
+            catch (Exception ex)
+            {
+                Logger.Log("Automatic backup failed: " + ex.Message);
+                if (!_autoBackupFailedNotified)
+                {
+                    _autoBackupFailedNotified = true;
+                    _tray?.ShowWarning("Automatic backup failed",
+                        ex is GoogleSignInRequiredException
+                            ? "Sign in to Google again in ☁ Backup & restore."
+                            : ex.Message);
+                }
+            }
+        };
+        _backupTimer.Start();
     }
 
     private LauncherWindow? _launcher;

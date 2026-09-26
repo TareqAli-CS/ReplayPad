@@ -1,0 +1,9 @@
+<!-- Copy to google-oauth.props (git-ignored) and fill in the OAuth client
+     from Google Cloud Console → APIs & Services → Credentials →
+     Create credentials → OAuth client ID → Application type: Desktop app. -->
+<Project>
+  <PropertyGroup>
+    <GoogleClientId>PASTE_YOUR_CLIENT_ID_HERE</GoogleClientId>
+    <GoogleClientSecret>PASTE_YOUR_CLIENT_SECRET_HERE</GoogleClientSecret>
+  </PropertyGroup>
+</Project>

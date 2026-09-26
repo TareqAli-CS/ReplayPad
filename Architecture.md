@@ -79,6 +79,10 @@ All under [ReplayPad/](ReplayPad/):
 | `EditorWaveformView` | UI/EditorWaveformView.cs | Interactive waveform: drag-to-select, playhead, renders from 4096 precomputed peak buckets |
 | `VoicePlayer` | Core/VoicePlayer.cs | "Play to mic": plays a replay into a chosen render device (virtual cable — Voicemod/VB-CABLE) whose paired virtual microphone is the call app's input; optional mirror to default speakers; owned by AppController so soundboard hotkeys work without a window |
 | `SoundboardStore` | Core/SoundboardStore.cs | Persistent labels, per-sound volumes, pad colors, pins and slot assignments (soundboard.json in AppData); slots 1–9 map to Ctrl+Alt+1..9, Ctrl+Alt+0 stops |
+| `LibraryBackup` | Core/LibraryBackup.cs | One-zip snapshot of the library (sounds + category folders incl. empty, replays + transcripts, per-file metadata, settings minus folder/API key); restore reuses same-size files, renames clashes " (1)", blocks path traversal, and fills metadata only where missing |
+| `GoogleAuth` | Core/GoogleAuth.cs | Backend-free Google sign-in: OAuth loopback redirect (TcpListener on 127.0.0.1) + PKCE, `drive.file` scope; refresh token DPAPI-encrypted in `google-signin.dat`. Client ID/secret come from build metadata (`google-oauth.props`, git-ignored) |
+| `GoogleDriveClient` | Core/GoogleDriveClient.cs | Raw Drive v3 REST: "ReplayPad Backups" folder, resumable 8 MB-chunk uploads that resume after drops, list via appProperties, download, delete |
+| `CloudBackup` | Core/CloudBackup.cs | Orchestrates backup/restore (Drive or file), one operation at a time; prunes to N newest backups per PC; `backup.json` prefs; auto-backup timer lives in App |
 | `UpdateChecker` | Core/UpdateChecker.cs | Compares the running version to the latest GitHub release; quiet startup check + tray menu item |
 | `RenameDialog` | UI/RenameDialog.xaml(.cs) | Per-sound dialog: label, file rename, per-sound volume, soundboard slot assignment |
 | `LauncherWindow` | UI/LauncherWindow.xaml(.cs) | Global quick launcher (Ctrl+Alt+Q): borderless search popup, Enter plays into the call |

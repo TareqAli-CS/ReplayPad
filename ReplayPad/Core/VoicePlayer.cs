@@ -21,12 +21,21 @@ public sealed class VoicePlayer : IDisposable
         public float SoundGain = 1f;
         public int Remaining;
         public int MirrorIndex = -1;
+        // Remembered so a looping sound can be relaunched with the same output.
+        public string VoiceDevice = "";
+        public bool AlsoSpeakers;
         public readonly List<(WasapiOut Output, AudioFileReader Reader)> Outputs = [];
     }
 
     private readonly object _lock = new();
     private readonly List<Session> _sessions = [];
     private float _masterVolume = 1f;
+
+    /// <summary>
+    /// When true, a sound that finishes naturally is immediately replayed,
+    /// so it keeps looping until stopped or Loop is turned off.
+    /// </summary>
+    public bool Loop { get; set; }
 
     /// <summary>Raised (from a playback thread) when the last playing sound finished naturally.</summary>
     public event Action? PlaybackEnded;
@@ -62,7 +71,9 @@ public sealed class VoicePlayer : IDisposable
         var session = new Session
         {
             Path = filePath,
-            SoundGain = Math.Clamp(soundGain, 0.1f, 3f)
+            SoundGain = Math.Clamp(soundGain, 0.1f, 3f),
+            VoiceDevice = voiceDeviceName,
+            AlsoSpeakers = alsoSpeakers
         };
 
         lock (_lock)
@@ -110,18 +121,33 @@ public sealed class VoicePlayer : IDisposable
     private void OnOutputStopped(Session session)
     {
         bool wasLast;
+        bool relaunch = false;
         lock (_lock)
         {
             // Late event from a session that Stop()/StopPath() already
-            // removed and disposed — ignore.
+            // removed and disposed — ignore. A manual stop removes the
+            // session before this fires, so looping only ever restarts a
+            // sound that reached its natural end.
             if (!_sessions.Contains(session))
                 return;
             if (--session.Remaining > 0)
                 return;
             _sessions.Remove(session);
             wasLast = _sessions.Count == 0;
+            relaunch = Loop;
         }
         DisposeSessionAsync(session);
+        if (relaunch)
+        {
+            // Restart off the playback callback thread; overlap:true so a
+            // loop never cuts other sounds that may be playing.
+            Task.Run(() =>
+            {
+                try { Play(session.Path, session.VoiceDevice, session.AlsoSpeakers, session.SoundGain, overlap: true); }
+                catch { }
+            });
+            return;
+        }
         if (wasLast)
             PlaybackEnded?.Invoke();
     }

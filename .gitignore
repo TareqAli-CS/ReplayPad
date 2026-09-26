@@ -18,3 +18,8 @@ TestOutput/
 # Release build output
 publish/
 installer/Output/
+
+# Google OAuth client for Drive backup (keep out of the public repo)
+ReplayPad/google-oauth.props
+publish-test/
+publish-drive/

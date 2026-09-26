@@ -85,6 +85,7 @@ Google Drive backup needs an OAuth client of your own when building from source 
 2. **Set up the call output once:** ⚙ Settings → *Play to mic* → pick your virtual cable device (see below).
 3. **Add sounds:** drag MP3/WAV files onto the board, or clip a live moment with `Ctrl+Alt+D` and use *Send to soundboard*.
 4. **Click a pad** — your friends hear it. `Ctrl+Alt+Q` mid-game does the same without leaving your game.
+5. **Protect your library (optional):** click **☁** in the rail → *Sign in with Google* → *Back up now*, and tick *Back up automatically*.
 
 ## Connecting It to Discord (or any call app)
 
@@ -103,7 +104,7 @@ Windows doesn't let apps inject audio into a physical microphone, so every sound
 - **Loop:** click **🔁 Loop** (top-right) to auto-replay — every sound repeats from the start when it ends and keeps going until you click Loop again or stop the sound. Toggle it on before or during playback.
 - **Organize:** ＋ Category creates a category (a subfolder of the library — everything stays visible in Explorer). Drag pads onto chips to move sounds (**Ctrl+drag copies**), or right-click → *Move / copy to category…*.
 - **Customize:** right-click → *Rename / hotkey / volume…* for the label, file name, **pad color**, per-sound volume, category, a `Ctrl+Alt+1..9` slot **or any custom hotkey combo** — click the hotkey field and just **press the combo** to set it (Backspace removes it). *Pin / unpin* keeps favorites at the top.
-- **Share:** the **Export** button zips the whole board (sounds + labels + colors + hotkeys + order); **Import** merges someone else's board into yours without overwriting anything.
+- **Share:** the **Export** button zips the whole board (sounds + labels + colors + hotkeys + order); **Import** merges someone else's board into yours without overwriting anything. (Export is for sharing a board; to protect *your whole library* — replays and settings included — use **☁ Backup & restore**.)
 - **Reorder:** drag a pad **onto another pad** to place it before it, or onto empty grid space to send it to the end — the order is remembered.
 - **Edit:** right-click → *Edit sound…* opens the full editor; saved copies appear on the board immediately.
 - **Find:** the search box filters pads as you type; `Ctrl+Alt+Q` opens the global launcher with the same search.
@@ -122,6 +123,8 @@ Click **☁** in the rail.
 - **Automatic:** tick *Back up automatically* and pick how often; ReplayPad keeps the newest 3 / 5 / 10 backups of each PC and deletes older ones (never another PC's).
 - **File:** *Save backup to file…* / *Restore from file…* — same content, no account needed.
 
+Only one backup or restore runs at a time; a running one shows a progress bar and can be **cancelled** safely (nothing half-written is left behind). Automatic backups run quietly in the background — first check about 2 minutes after the app starts, then every 30 minutes — and only warn you (tray balloon) if one fails.
+
 A backup contains the soundboard with every category folder, the replays (optional) with their transcripts, all labels / colors / volumes / pins / order / hotkeys, and your settings (never your library path or Groq API key). **Restoring only adds:** files you already have are kept (a different file with the same name is restored as ` (1)`), labels and colors only fill in where yours are empty, and settings are only replaced if you tick *also restore settings*.
 
 **Privacy:** ReplayPad talks to Google directly — there's no ReplayPad server. It asks only for the `drive.file` permission, so it can see the backups it created and **nothing else in your Drive**. Your sign-in is stored on your PC only, encrypted with your Windows account; *Sign out* revokes it. Full details: [PRIVACY.md](PRIVACY.md).
@@ -136,13 +139,26 @@ A backup contains the soundboard with every category folder, the replays (option
 | `Ctrl+Alt+0` | Stop all soundboard playback |
 | `Ctrl+Alt+Q` | Quick launcher (search & play any sound) |
 
-Sound hotkeys toggle: pressing a sound's combo while it plays **stops it** instead of restarting it. All hotkey fields are set by **clicking and pressing the combo** (✕ removes it).
+Sound hotkeys toggle: pressing a sound's combo while it plays **stops it** instead of restarting it. All hotkey fields are set by **clicking and pressing the combo** (✕ removes it). Custom sound hotkeys only apply to sounds in your **current** library folder, so an old library or a restored copy elsewhere can't steal a combo.
 
 All configurable in ⚙ Settings.
 
 ## Configuration
 
-Settings are edited in the ⚙ Settings window and stored in `%AppData%\ReplayPad\appsettings.json` (labels, hotkey slots, colors, and pins live in `soundboard.json` next to it — everything survives updates):
+Everything ReplayPad keeps about you lives in `%AppData%\ReplayPad` and **survives updates and reinstalls**:
+
+| File | What's in it |
+|---|---|
+| `appsettings.json` | App settings (table below), edited in ⚙ Settings |
+| `soundboard.json` | Labels, pad colors, per-sound volumes, pins, pad order, `Ctrl+Alt+1..9` slots and custom hotkeys |
+| `backup.json` | Backup preferences, edited in ☁ Backup & restore (table below) |
+| `google-signin.dat` | Your Google sign-in — only if you signed in; encrypted with your Windows account, so it's useless if copied to another PC or user. Deleted on *Sign out* |
+| `log.txt` | Error / event log |
+| `*.bak` | Automatic previous-version copies, used to recover if a file gets damaged |
+
+Your audio itself is in the library folder (`OutputFolder`, below). Uninstalling ReplayPad never deletes either.
+
+**App settings** (`appsettings.json`):
 
 | Setting | Default | Meaning |
 |---|---|---|
@@ -155,6 +171,16 @@ Settings are edited in the ⚙ Settings window and stored in `%AppData%\ReplayPa
 | `GroqApiKey` | — | Free key for transcription (stored only on your PC) |
 | `DesktopGain` / `MicrophoneGain` | `1.0` | Capture volume per source |
 
+**Backup preferences** (`backup.json`):
+
+| Setting | Default | Meaning |
+|---|---|---|
+| `AutoBackup` | `false` | Back up to Google Drive automatically |
+| `EveryDays` | `1` | How often: `1`, `3` or `7` days |
+| `KeepCount` | `5` | Newest Drive backups kept **per PC** (`3` / `5` / `10`); older ones from this PC are deleted |
+| `IncludeReplays` | `true` | Include replays, not just soundboard sounds |
+| `LastBackupUtc` | — | When this PC last backed up (drives the automatic schedule) |
+
 ## Troubleshooting
 
 - **"Hotkey is already in use"** — another app owns that combo; change it in Settings.
@@ -162,11 +188,16 @@ Settings are edited in the ⚙ Settings window and stored in `%AppData%\ReplayPa
 - **Per-app capture says the app is not running** — start the target app first, or switch back to *All apps*.
 - **Echo in the call** — untick *"Hear it too"*, or use headphones.
 - **Saves blocked by Windows Ransomware Protection** — ReplayPad rescues the clip to a safe fallback folder and shows a dialog with one-click fixes: allow the app in Windows Security (recommended), or switch the library to an unprotected folder.
+- **"Google hasn't verified this app"** when signing in — expected for a small open-source app; click *Continue* (or *Advanced → Go to ReplayPad*). ReplayPad only gets access to its own backup files.
+- **"Access blocked" / "has not completed the Google verification process"** — you're running a build from source whose Google project is still in *Testing*: add your Gmail as a test user, or publish the project (see [docs/google-drive-setup.md](docs/google-drive-setup.md)). Official releases don't have this problem.
+- **"Your Google sign-in expired or was removed"** or an *Automatic backup failed* balloon — open ☁ and sign in again (happens if you removed ReplayPad's access at [myaccount.google.com/permissions](https://myaccount.google.com/permissions), or after 6 months without using it).
+- **Backup is slow** — the first backup uploads everything (replays can be large; untick *Include replays* to back up just the soundboard). If the connection drops, it resumes instead of starting over.
+- **"Google backup isn't set up in this build"** — you built from source without a `google-oauth.props`; file backups still work.
 - Errors are logged to `%AppData%\ReplayPad\log.txt`; unexpected errors won't kill the app.
 
 ## Tech Notes
 
-C# / .NET 10, WPF (dark UI, custom-drawn waveforms), [NAudio](https://github.com/naudio/NAudio) for WASAPI capture/playback and Media Foundation encoding. Per-app capture is a hand-written COM interop of the Windows process-loopback API. Design details in [Architecture.md](Architecture.md); [project.md](project.md) is the original concept document.
+C# / .NET 10, WPF (dark UI, custom-drawn waveforms), [NAudio](https://github.com/naudio/NAudio) for WASAPI capture/playback and Media Foundation encoding. Per-app capture is a hand-written COM interop of the Windows process-loopback API. Google Drive backup uses the Drive v3 REST API directly (no SDK, no backend): OAuth sign-in via a loopback redirect with PKCE, resumable chunked uploads, and the refresh token protected with Windows DPAPI. Design details in [Architecture.md](Architecture.md); [project.md](project.md) is the original concept document.
 
 ## License
 

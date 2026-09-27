@@ -51,6 +51,16 @@ public sealed class VoicePlayer : IDisposable
             return _sessions.Any(s => string.Equals(s.Path, path, StringComparison.OrdinalIgnoreCase));
     }
 
+    /// <summary>The active playback device whose name contains <paramref name="name"/> (the call device), or null.</summary>
+    public static MMDevice? FindRenderDevice(string name)
+    {
+        if (string.IsNullOrWhiteSpace(name))
+            return null;
+        using var enumerator = new MMDeviceEnumerator();
+        return enumerator.EnumerateAudioEndPoints(DataFlow.Render, DeviceState.Active)
+                         .FirstOrDefault(d => d.FriendlyName.Contains(name, StringComparison.OrdinalIgnoreCase));
+    }
+
     public static List<string> ListRenderDevices()
     {
         var names = new List<string>();
@@ -79,17 +89,8 @@ public sealed class VoicePlayer : IDisposable
         lock (_lock)
         {
             using var enumerator = new MMDeviceEnumerator();
-            MMDevice? voiceDevice = null;
-            foreach (var device in enumerator.EnumerateAudioEndPoints(DataFlow.Render, DeviceState.Active))
-            {
-                if (voiceDevice == null &&
-                    device.FriendlyName.Contains(voiceDeviceName, StringComparison.OrdinalIgnoreCase))
-                {
-                    voiceDevice = device;
-                }
-            }
-            if (voiceDevice == null)
-                throw new InvalidOperationException(
+            var voiceDevice = FindRenderDevice(voiceDeviceName)
+                ?? throw new InvalidOperationException(
                     $"Playback device \"{voiceDeviceName}\" was not found — pick your virtual mic device again in Settings.");
 
             var targets = new List<MMDevice> { voiceDevice };

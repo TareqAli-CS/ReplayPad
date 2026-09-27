@@ -110,7 +110,10 @@ public partial class MainWindow : Window
         {
             _volumeSaveTimer.Stop();
             try { _controller.Settings.Save(); } catch (Exception ex) { Logger.Log("Volume save failed: " + ex.Message); }
+            _controller.AppSharePrefs.Save();
         };
+
+        InitAppShare();
 
         _uiTimer = new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(100) };
         _uiTimer.Tick += (_, _) => UpdateLiveState();
@@ -165,6 +168,12 @@ public partial class MainWindow : Window
         }
 
         UpdateTransportBar();
+
+        if (_controller.AppShare.IsRunning && SoundboardView.Visibility == Visibility.Visible)
+        {
+            _shareLevel = Math.Max(_controller.AppShare.Peak * 100, _shareLevel * 0.8);
+            ShareLevel.Value = Math.Min(100, _shareLevel);
+        }
     }
 
     // ---------- now-playing transport ----------
@@ -1074,6 +1083,119 @@ public partial class MainWindow : Window
         _voicePlayer.Stop();
         MicPlayBtn.Content = "Play to mic";
         RefreshSoundboard();
+    }
+
+    // ---------- share app audio ----------
+
+    private bool _loadingShareUi;
+    private double _shareLevel;
+
+    private void InitAppShare()
+    {
+        var prefs = _controller.AppSharePrefs;
+        _loadingShareUi = true;
+        if (!string.IsNullOrWhiteSpace(prefs.LastApp))
+        {
+            ShareAppBox.Items.Add(prefs.LastApp);
+            ShareAppBox.SelectedIndex = 0;
+        }
+        ShareVolumeSlider.Value = prefs.Volume;
+        ShareVolumeText.Text = $"{prefs.Volume}%";
+        ShareHotkeyBox.Hotkey = prefs.Hotkey;
+        _loadingShareUi = false;
+
+        System.ComponentModel.DependencyPropertyDescriptor
+            .FromProperty(HotkeyBox.HotkeyProperty, typeof(HotkeyBox))
+            .AddValueChanged(ShareHotkeyBox, (_, _) => OnShareHotkeyChanged());
+        _controller.AppShare.StateChanged += () => Dispatcher.BeginInvoke(UpdateShareUi);
+        _controller.AppShareError += message => Dispatcher.BeginInvoke(() => ShowShareStatus(message, ok: false));
+        UpdateShareUi();
+    }
+
+    private void UpdateShareUi()
+    {
+        var share = _controller.AppShare;
+        bool running = share.IsRunning;
+        ShareBtn.Content = running ? "■ Stop" : "▶ Share";
+        ShareBtn.Style = (Style)FindResource(running ? "Btn" : "BtnAccent");
+        ShareAppBox.IsEnabled = !running;
+        if (running && share.App is string app && !Equals(ShareAppBox.SelectedItem, app))
+        {
+            if (!ShareAppBox.Items.Contains(app))
+                ShareAppBox.Items.Insert(0, app);
+            ShareAppBox.SelectedItem = app; // started from the hotkey/tray
+        }
+        ShareLevel.Visibility = running ? Visibility.Visible : Visibility.Collapsed;
+        if (running)
+            ShowShareStatus($"● Sharing {share.App} into the call — friends hear it, and you still hear it as usual.", ok: true);
+        else if (share.Error != null)
+            ShowShareStatus(share.Error, ok: false);
+        else
+            ShowShareStatus("Pick an app that's playing sound (a browser, music player, game…) and friends will hear it through your mic.", ok: null);
+    }
+
+    /// <param name="ok">true = green, false = warning, null = neutral hint.</param>
+    private void ShowShareStatus(string text, bool? ok)
+    {
+        ShareStatusText.Text = text;
+        ShareStatusText.Foreground = (Brush)FindResource(ok switch { true => "GreenBrush", false => "WarnBrush", _ => "DimBrush" });
+    }
+
+    private void OnShareAppsOpened(object? sender, EventArgs e)
+    {
+        string? current = ShareAppBox.SelectedItem as string;
+        List<string> apps;
+        try { apps = AppAudioShare.ListAudioApps(); }
+        catch (Exception ex) { Logger.Log("Could not list audio apps: " + ex.Message); return; }
+
+        ShareAppBox.Items.Clear();
+        foreach (string app in apps)
+            ShareAppBox.Items.Add(app);
+        if (current != null && !apps.Contains(current, StringComparer.OrdinalIgnoreCase))
+            ShareAppBox.Items.Insert(0, current); // keep the last choice even if it's quiet right now
+        if (ShareAppBox.Items.Count == 0)
+            ShowShareStatus("No app is playing sound right now — start the video/music first, then open this list again.", ok: false);
+        ShareAppBox.SelectedItem = current ?? (ShareAppBox.Items.Count > 0 ? ShareAppBox.Items[0] : null);
+    }
+
+    private void OnShareClick(object sender, RoutedEventArgs e)
+    {
+        if (_controller.AppShare.IsRunning)
+        {
+            _controller.AppShare.Stop();
+            return;
+        }
+        if (ShareAppBox.SelectedItem is not string app)
+        {
+            ShowShareStatus("Pick an app from the list first (open it while the app is playing sound).", ok: false);
+            return;
+        }
+        string error = _controller.StartAppShare(app);
+        if (error.Length > 0)
+            ShowShareStatus(error, ok: false);
+    }
+
+    private void OnShareVolumeChanged(object sender, RoutedPropertyChangedEventArgs<double> e)
+    {
+        if (ShareVolumeText == null || _loadingShareUi)
+            return;
+        int volume = (int)ShareVolumeSlider.Value;
+        ShareVolumeText.Text = $"{volume}%";
+        _controller.AppSharePrefs.Volume = volume;
+        _controller.AppShare.SetVolume(volume); // live
+        _volumeSaveTimer.Stop();
+        _volumeSaveTimer.Start();
+    }
+
+    private void OnShareHotkeyChanged()
+    {
+        if (_loadingShareUi || ShareHotkeyBox.Hotkey == _controller.AppSharePrefs.Hotkey)
+            return;
+        _controller.AppSharePrefs.Hotkey = ShareHotkeyBox.Hotkey;
+        _controller.AppSharePrefs.Save();
+        string warning = _controller.RegisterHotkey();
+        if (warning.Length > 0)
+            ShowShareStatus(warning, ok: false);
     }
 
     private void OnLoopToggle(object sender, RoutedEventArgs e)

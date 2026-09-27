@@ -83,6 +83,7 @@ All under [ReplayPad/](ReplayPad/):
 | `GoogleAuth` | Core/GoogleAuth.cs | Backend-free Google sign-in: OAuth loopback redirect (TcpListener on 127.0.0.1) + PKCE, `drive.file` scope; refresh token DPAPI-encrypted in `google-signin.dat`. Client ID/secret come from build metadata (`google-oauth.props`, git-ignored) |
 | `GoogleDriveClient` | Core/GoogleDriveClient.cs | Raw Drive v3 REST: "ReplayPad Backups" folder, resumable 8 MB-chunk uploads that resume after drops, list via appProperties, download, delete |
 | `CloudBackup` | Core/CloudBackup.cs | Orchestrates backup/restore (Drive or file), one operation at a time; prunes to N newest backups per PC; `backup.json` prefs; auto-backup timer lives in App |
+| `AppAudioShare` | Core/AppAudioShare.cs | "Share app audio": `ProcessLoopbackCapture` of one app (48 kHz/16-bit stereo) → float + live volume → `StereoJitterBuffer` (40 ms cushion, trims above 200 ms, re-primes on underrun) → resample/channel-map to the call device's mix format → WASAPI shared. A watchdog stops it when the app exits; Discord/Voicemod/ReplayPad are blocked (feedback). Prefs + hotkey in `appshare.json` |
 | `UpdateChecker` | Core/UpdateChecker.cs | Compares the running version to the latest GitHub release; quiet startup check + tray menu item |
 | `RenameDialog` | UI/RenameDialog.xaml(.cs) | Per-sound dialog: label, file rename, per-sound volume, soundboard slot assignment |
 | `LauncherWindow` | UI/LauncherWindow.xaml(.cs) | Global quick launcher (Ctrl+Alt+Q): borderless search popup, Enter plays into the call |

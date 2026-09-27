@@ -15,6 +15,7 @@ public sealed class AppController : IDisposable
     private const int LauncherHotkeyId = 3;
     private const int SlotHotkeyBase = 10; // slots 1..9 → ids 11..19
     private const int StopSoundHotkeyId = 20;
+    private const int AppShareHotkeyId = 22;
     private const int CustomHotkeyBase = 100; // per-sound custom hotkeys
 
     private readonly Dictionary<int, string> _customHotkeyPaths = [];
@@ -37,6 +38,10 @@ public sealed class AppController : IDisposable
 
     /// <summary>Google Drive / file backup and restore of the whole library.</summary>
     public CloudBackup Backup { get; }
+
+    /// <summary>Shares one app's sound into the call ("Share app audio").</summary>
+    public AppAudioShare AppShare { get; } = new();
+    public AppSharePrefs AppSharePrefs { get; } = AppSharePrefs.Load();
 
     /// <summary>Raised from a background thread after a successful save.</summary>
     public event Action<string, TimeSpan>? ReplaySaved;
@@ -78,6 +83,7 @@ public sealed class AppController : IDisposable
             else if (id == ClipHotkeyId) SaveClip();
             else if (id == LauncherHotkeyId) LauncherRequested?.Invoke();
             else if (id == StopSoundHotkeyId) Voice.Stop();
+            else if (id == AppShareHotkeyId) ToggleAppShare();
             else if (id > SlotHotkeyBase && id <= SlotHotkeyBase + SoundboardStore.SlotCount)
                 PlaySlot(id - SlotHotkeyBase);
             else if (_customHotkeyPaths.TryGetValue(id, out var customPath))
@@ -125,6 +131,7 @@ public sealed class AppController : IDisposable
         Add(ClipHotkeyId, Settings.ClipHotkey, "Save clip");
         Add(LauncherHotkeyId, Settings.LauncherHotkey, "Quick launcher");
         Add(StopSoundHotkeyId, Settings.StopHotkey, "Stop all");
+        Add(AppShareHotkeyId, AppSharePrefs.Hotkey, "Share app audio");
 
         for (int slot = 1; slot <= SoundboardStore.SlotCount; slot++)
         {
@@ -215,6 +222,43 @@ public sealed class AppController : IDisposable
             SoundboardError?.Invoke(ex.Message);
             return false;
         }
+    }
+
+    // ---------- share app audio ----------
+
+    /// <summary>Raised when sharing couldn't start from the hotkey: message for the user.</summary>
+    public event Action<string>? AppShareError;
+
+    /// <summary>Starts sharing an app into the call device. Returns an error message or "".</summary>
+    public string StartAppShare(string app)
+    {
+        try
+        {
+            AppShare.Start(app, Settings.VoiceDevice, AppSharePrefs.Volume);
+            AppSharePrefs.LastApp = app;
+            AppSharePrefs.Save();
+            return "";
+        }
+        catch (Exception ex)
+        {
+            Logger.Log("Share app audio failed: " + ex.Message);
+            return ex.Message;
+        }
+    }
+
+    /// <summary>Hotkey: stop sharing, or re-share the last app.</summary>
+    public void ToggleAppShare()
+    {
+        if (AppShare.IsRunning)
+        {
+            AppShare.Stop();
+            return;
+        }
+        string error = string.IsNullOrWhiteSpace(AppSharePrefs.LastApp)
+            ? "Pick an app to share in the soundboard's \"Share app audio\" bar first."
+            : StartAppShare(AppSharePrefs.LastApp);
+        if (error.Length > 0)
+            AppShareError?.Invoke(error);
     }
 
     /// <summary>Plays the sound assigned to a soundboard slot; a second press stops it.</summary>
@@ -327,6 +371,8 @@ public sealed class AppController : IDisposable
                 _engine.Start();
 
             string warning = RegisterHotkey();
+            if (AppShare.IsRunning && AppShare.App is string sharedApp)
+                StartAppShare(sharedApp); // the call device may have changed
             Logger.Log("Settings applied." + (warning.Length > 0 ? " Warning: " + warning : ""));
             StateChanged?.Invoke();
             return warning;
@@ -338,6 +384,7 @@ public sealed class AppController : IDisposable
     public void Dispose()
     {
         _hotkeys.Dispose();
+        AppShare.Dispose();
         Voice.Dispose();
         _engine.Dispose();
     }

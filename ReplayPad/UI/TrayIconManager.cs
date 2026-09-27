@@ -16,6 +16,7 @@ public sealed class TrayIconManager : IDisposable
     private readonly WF.ToolStripMenuItem _pauseItem;
     private readonly WF.ToolStripMenuItem _autoStartItem;
     private readonly WF.ToolStripMenuItem _clipItem;
+    private readonly WF.ToolStripMenuItem _shareItem;
 
     public TrayIconManager(AppController controller, Action openWindow, Action exitApp)
     {
@@ -40,6 +41,8 @@ public sealed class TrayIconManager : IDisposable
         menu.Items.Add(_clipItem);
         menu.Items.Add(clearItem);
         menu.Items.Add(new WF.ToolStripSeparator());
+        _shareItem = new WF.ToolStripMenuItem("Share app audio", null, (_, _) => _controller.ToggleAppShare());
+        menu.Items.Add(_shareItem);
         menu.Items.Add(_pauseItem);
         menu.Items.Add(_autoStartItem);
         menu.Items.Add(new WF.ToolStripMenuItem("Check for updates", null, (_, _) => CheckForUpdates()));
@@ -55,6 +58,15 @@ public sealed class TrayIconManager : IDisposable
         _icon.DoubleClick += (_, _) => openWindow();
 
         _controller.StateChanged += () => OnUiThread(UpdateState);
+        _controller.AppShare.StateChanged += () => OnUiThread(() =>
+        {
+            UpdateState();
+            // Stopped on its own (app closed, device lost): say so — the window may be hidden.
+            if (!_controller.AppShare.IsRunning && _controller.AppShare.Error is string error)
+                _icon.ShowBalloonTip(4000, "Share app audio", error, WF.ToolTipIcon.Warning);
+        });
+        _controller.AppShareError += message => OnUiThread(() =>
+            _icon.ShowBalloonTip(4000, "Share app audio", message, WF.ToolTipIcon.Warning));
         _controller.ReplaySaved += (path, duration) => OnUiThread(() =>
         {
             if (_controller.Settings.ShowNotifications)
@@ -123,6 +135,11 @@ public sealed class TrayIconManager : IDisposable
         bool running = _controller.IsCapturing;
         _pauseItem.Text = running ? "Stop recording" : "Start recording";
         _clipItem.Text = $"Save last {_controller.Settings.ClipSeconds} s";
+        var share = _controller.AppShare;
+        string last = _controller.AppSharePrefs.LastApp;
+        _shareItem.Checked = share.IsRunning;
+        _shareItem.Text = share.IsRunning ? $"Sharing {share.App} — click to stop"
+            : last.Length > 0 ? $"Share {last} audio" : "Share app audio (pick an app in the window)";
         // NotifyIcon.Text is limited to 63 characters.
         _icon.Text = running
             ? $"ReplayPad — recording ({_controller.Settings.Hotkey})"

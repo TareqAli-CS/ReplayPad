@@ -22,6 +22,7 @@ Someone said something legendary in the call? `Ctrl+Alt+D` clips it, trim it in 
 - **Export / Import** the whole board as a zip — share your soundboard with friends, sounds + labels + colors + hotkeys included
 - **Quick launcher** — `Ctrl+Alt+Q` anywhere (even mid-game): type two letters, Enter, the sound plays into your call
 - **Overlap or interrupt** mode: layer sounds over each other, or let each new sound cut the previous one
+- **📤 Share app audio** — send one app's sound (a YouTube tab, Spotify, a game…) into the call through your mic, mixed with your sounds; you keep hearing it normally, with its own volume and a start/stop hotkey (`Ctrl+Alt+A`)
 - **🔁 Loop** toggle: keep auto-replaying each sound (great for looping music or ambience) until you turn it off or stop the sound
 
 **Replay buffer**
@@ -108,6 +109,7 @@ Windows doesn't let apps inject audio into a physical microphone, so every sound
 - **Reorder:** drag a pad **onto another pad** to place it before it, or onto empty grid space to send it to the end — the order is remembered.
 - **Edit:** right-click → *Edit sound…* opens the full editor; saved copies appear on the board immediately.
 - **Find:** the search box filters pads as you type; `Ctrl+Alt+Q` opens the global launcher with the same search.
+- **Share an app:** the **📤 Share app audio** bar above the pads sends one app's sound into the call. Start the app's audio (e.g. play a YouTube video), pick the app from the list (it shows apps that are playing sound), press **▶ Share** — friends now hear it through your mic, mixed with your voice (Voicemod) and your pads. You keep hearing it normally; the slider sets how loud *they* hear it. `Ctrl+Alt+A` (or the tray menu) starts/stops sharing the last app from anywhere. Sharing stops by itself if the app closes. Discord and Voicemod can't be shared (the call would echo back into itself).
 
 ## The Replay Buffer
 
@@ -138,6 +140,7 @@ A backup contains the soundboard with every category folder, the replays (option
 | `Ctrl+Alt+1`–`9` | Play soundboard slot into the call (press again to stop it) |
 | `Ctrl+Alt+0` | Stop all soundboard playback |
 | `Ctrl+Alt+Q` | Quick launcher (search & play any sound) |
+| `Ctrl+Alt+A` | Start/stop sharing the last app's audio into the call |
 
 Sound hotkeys toggle: pressing a sound's combo while it plays **stops it** instead of restarting it. All hotkey fields are set by **clicking and pressing the combo** (✕ removes it). Custom sound hotkeys only apply to sounds in your **current** library folder, so an old library or a restored copy elsewhere can't steal a combo.
 
@@ -152,6 +155,7 @@ Everything ReplayPad keeps about you lives in `%AppData%\ReplayPad` and **surviv
 | `appsettings.json` | App settings (table below), edited in ⚙ Settings |
 | `soundboard.json` | Labels, pad colors, per-sound volumes, pins, pad order, `Ctrl+Alt+1..9` slots and custom hotkeys |
 | `backup.json` | Backup preferences, edited in ☁ Backup & restore (table below) |
+| `appshare.json` | Share app audio: last shared app, its volume, and the start/stop hotkey |
 | `google-signin.dat` | Your Google sign-in — only if you signed in; encrypted with your Windows account, so it's useless if copied to another PC or user. Deleted on *Sign out* |
 | `log.txt` | Error / event log |
 | `*.bak` | Automatic previous-version copies, used to recover if a file gets damaged |
@@ -187,6 +191,8 @@ Your audio itself is in the library folder (`OutputFolder`, below). Uninstalling
 - **Friends can't hear sounds** — Discord's input must be the *cable's microphone* side (step 3 above).
 - **Per-app capture says the app is not running** — start the target app first, or switch back to *All apps*.
 - **Echo in the call** — untick *"Hear it too"*, or use headphones.
+- **My app isn't in the Share list** — the list only shows apps that are playing sound *right now*: start the video/music first, then open the list again. Browsers appear as e.g. `chrome` / `msedge`.
+- **Friends don't hear the shared app** — sharing goes to your ⚙ *Play to mic* device, so Discord's input must be that device's mic side (see *Connecting It to Discord*), and the bar must show "● Sharing …".
 - **Saves blocked by Windows Ransomware Protection** — ReplayPad rescues the clip to a safe fallback folder and shows a dialog with one-click fixes: allow the app in Windows Security (recommended), or switch the library to an unprotected folder.
 - **"Google hasn't verified this app"** when signing in — expected for a small open-source app; click *Continue* (or *Advanced → Go to ReplayPad*). ReplayPad only gets access to its own backup files.
 - **"Access blocked" / "has not completed the Google verification process"** — you're running a build from source whose Google project is still in *Testing*: add your Gmail as a test user, or publish the project (see [docs/google-drive-setup.md](docs/google-drive-setup.md)). Official releases don't have this problem.
@@ -197,7 +203,7 @@ Your audio itself is in the library folder (`OutputFolder`, below). Uninstalling
 
 ## Tech Notes
 
-C# / .NET 10, WPF (dark UI, custom-drawn waveforms), [NAudio](https://github.com/naudio/NAudio) for WASAPI capture/playback and Media Foundation encoding. Per-app capture is a hand-written COM interop of the Windows process-loopback API. Google Drive backup uses the Drive v3 REST API directly (no SDK, no backend): OAuth sign-in via a loopback redirect with PKCE, resumable chunked uploads, and the refresh token protected with Windows DPAPI. Design details in [Architecture.md](Architecture.md); [project.md](project.md) is the original concept document.
+C# / .NET 10, WPF (dark UI, custom-drawn waveforms), [NAudio](https://github.com/naudio/NAudio) for WASAPI capture/playback and Media Foundation encoding. Per-app capture is a hand-written COM interop of the Windows process-loopback API — used both for recording one app and for *Share app audio*, which copies an app's stream into the call device through a self-trimming jitter buffer (so it never drifts out of sync or builds up delay). Google Drive backup uses the Drive v3 REST API directly (no SDK, no backend): OAuth sign-in via a loopback redirect with PKCE, resumable chunked uploads, and the refresh token protected with Windows DPAPI. Design details in [Architecture.md](Architecture.md); [project.md](project.md) is the original concept document.
 
 ## License
 

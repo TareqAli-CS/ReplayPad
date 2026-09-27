@@ -200,6 +200,7 @@
             <Grid x:Name="SoundboardView" Grid.Row="0">
                 <Grid.RowDefinitions>
                     <RowDefinition Height="Auto"/>
+                    <RowDefinition Height="Auto"/>
                     <RowDefinition Height="*"/>
                 </Grid.RowDefinitions>
 
@@ -224,7 +225,54 @@
                     </StackPanel>
                 </Grid>
 
-                <Border x:Name="SoundboardCard" Grid.Row="1" Style="{StaticResource Card}"
+                <!-- Share app audio: a copy of one app's sound goes into the call -->
+                <Border x:Name="ShareBar" Grid.Row="1" Background="{StaticResource InputBrush}"
+                        BorderBrush="{StaticResource CardBorderBrush}" BorderThickness="1" CornerRadius="8"
+                        Padding="12,8" Margin="0,0,0,10">
+                    <StackPanel>
+                        <Grid>
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="Auto"/>
+                                <ColumnDefinition Width="*"/>
+                                <ColumnDefinition Width="Auto"/>
+                                <ColumnDefinition Width="Auto"/>
+                                <ColumnDefinition Width="Auto"/>
+                            </Grid.ColumnDefinitions>
+                            <TextBlock Text="📤 Share app audio" FontWeight="SemiBold" FontSize="12.5"
+                                       VerticalAlignment="Center" Margin="0,0,10,0"/>
+                            <ComboBox x:Name="ShareAppBox" Grid.Column="1" FontSize="12"
+                                      DropDownOpened="OnShareAppsOpened"
+                                      ToolTip="Apps that are playing sound right now (start the audio first if yours isn't listed)"/>
+                            <Button x:Name="ShareBtn" Grid.Column="2" Style="{StaticResource BtnAccent}" Padding="14,5"
+                                    FontSize="12" Margin="8,0,0,0" Content="▶ Share" Click="OnShareClick"/>
+                            <Slider x:Name="ShareVolumeSlider" Grid.Column="3" Width="90" Minimum="0" Maximum="200"
+                                    TickFrequency="5" IsSnapToTickEnabled="True" VerticalAlignment="Center"
+                                    Margin="12,0,0,0" ValueChanged="OnShareVolumeChanged"
+                                    ToolTip="How loud friends hear the shared app (doesn't change what you hear)"/>
+                            <TextBlock x:Name="ShareVolumeText" Grid.Column="4" Style="{StaticResource Dim}" FontSize="11"
+                                       Width="36" Margin="6,0,0,0" VerticalAlignment="Center" TextAlignment="Right"
+                                       Text="100%"/>
+                        </Grid>
+                        <Grid Margin="0,7,0,0">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*"/>
+                                <ColumnDefinition Width="Auto"/>
+                            </Grid.ColumnDefinitions>
+                            <TextBlock x:Name="ShareStatusText" Style="{StaticResource Dim}" FontSize="11"
+                                       TextWrapping="Wrap" VerticalAlignment="Center"/>
+                            <StackPanel Grid.Column="1" Orientation="Horizontal" Margin="10,0,0,0">
+                                <TextBlock Text="Hotkey" Style="{StaticResource Dim}" FontSize="11"
+                                           VerticalAlignment="Center" Margin="0,0,8,0"/>
+                                <ui:HotkeyBox x:Name="ShareHotkeyBox" Width="150"
+                                              ToolTip="Start/stop sharing the last app from anywhere"/>
+                            </StackPanel>
+                        </Grid>
+                        <ProgressBar x:Name="ShareLevel" Height="4" Maximum="100" Margin="0,7,0,0"
+                                     Visibility="Collapsed" ToolTip="What your friends are hearing"/>
+                    </StackPanel>
+                </Border>
+
+                <Border x:Name="SoundboardCard" Grid.Row="2" Style="{StaticResource Card}"
                         AllowDrop="True" Drop="OnSoundboardDrop" DragOver="OnSoundboardDragOver">
                     <DockPanel>
                         <Grid DockPanel.Dock="Top" Margin="0,0,0,10">
